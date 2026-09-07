@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>KOVAI STUDIO | AR Live Showcase</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b0711;
+      --gold: #D4AF37;
+      --gold-bright: #FFE58F;
+      --glass: rgba(18, 12, 28, 0.85);
+      --glass-border: rgba(212, 175, 55, 0.4);
+      --text: #FDFBF7;
+      --accent-purple: linear-gradient(135deg, #7b1fa2 0%, #38006b 100%);
+      --accent-gold: linear-gradient(135deg, #D4AF37 0%, #AA771C 100%);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* ---------- Loader Curtain ---------- */
+    #curtain {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, #1e1130 0%, #06030a 80%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+
+    .sparkle-ring {
+      width: 54px;
+      height: 54px;
+      border: 2px dashed var(--gold);
+      border-radius: 50%;
+      animation: spinRing 6s linear infinite;
+    }
+
+    @keyframes spinRing {
+      100% { transform: rotate(360deg); }
+    }
+
+    #curtain h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      letter-spacing: 3px;
+      color: var(--gold-bright);
+    }
+
+    #curtain p {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+
+    /* ---------- Scan Viewfinder ---------- */
+    #scanner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(70vw, 270px);
+      aspect-ratio: 1;
+      pointer-events: none;
+      z-index: 200;
+      transition: opacity 0.4s ease;
+    }
+
+    #scanner .bracket {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border: 2.5px solid var(--gold);
+    }
+    .tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+    .tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+    .bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+    .br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+
+    .glow-laser {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+      box-shadow: 0 0 12px var(--gold);
+      animation: sweep 2.2s ease-in-out infinite;
+    }
+
+    @keyframes sweep {
+      0%, 100% { top: 8%; opacity: 0; }
+      50% { top: 90%; opacity: 1; }
+    }
+
+    body.tracked #scanner {
+      opacity: 0;
+    }
+
+    /* ---------- Top Brand Tag ---------- */
+    #topBadge {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      padding: 7px 20px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(12px);
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--gold-bright);
+      pointer-events: none;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+    }
+
+    /* ---------- 2-Button Bottom Action Dock ---------- */
+    #actionDeck {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(30px);
+      width: calc(100% - 32px);
+      max-width: 400px;
+      display: flex;
+      gap: 12px;
+      z-index: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    body.tracked #actionDeck {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .btn-deck {
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      transition: transform 0.15s ease, filter 0.2s;
+    }
+
+    .btn-deck:active {
+      transform: scale(0.96);
+    }
+
+    .btn-play {
+      background: var(--accent-purple);
+    }
+
+    .btn-customize {
+      background: var(--accent-gold);
+      color: #1a0f00;
+      font-weight: 800;
+    }
+
+    .a-enter-vr, .a-enter-ar, .a-orientation-modal, .mindar-ui-loading, .mindar-ui-compatibility {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="curtain">
+    <div class="sparkle-ring"></div>
+    <h1>KOVAI STUDIO</h1>
+    <p>Initializing Live AR View</p>
+  </div>
+
+  <div id="topBadge">KOVAI STUDIO • COONOOR</div>
+
+  <div id="scanner">
+    <div class="bracket tl"></div>
+    <div class="bracket tr"></div>
+    <div class="bracket bl"></div>
+    <div class="bracket br"></div>
+    <div class="glow-laser"></div>
+  </div>
+
+  <!-- 2-Button Dock -->
+  <div id="actionDeck">
+    <button class="btn-deck btn-play" id="playBtn">▶ Play Video</button>
+    <a href="customize_zone.html" class="btn-deck btn-customize">✨ Customize Zone</a>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiError: no; filterMinCF:0.0001; filterBeta: 0.001;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    renderer="antialias: true; alpha: true">
+
+    <a-assets>
+      <video
+        id="arVideo"
+        playsinline
+        webkit-playsinline
+        preload="auto"
+        loop
+        crossorigin="anonymous">
+      </video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- AR Target Marker: Clean Video Anchor Only -->
+    <a-entity id="targetRoot" mindar-image-target="targetIndex: 0">
+      <a-plane
+        id="videoStage"
+        position="0 0 0.01"
+        width="1"
+        height="1"
+        material="src: #arVideo; shader: flat; side: double; transparent: true">
+      </a-plane>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const API_KEY = "AIzaSyA_mBu6emRKASkqHpLtwkdBiCQKYO3rvcw"; 
+    const FOLDER_ID = "1jRyVReP4cq7yk1VqwdFCMt0w4on4S77Q";
+
+    async function getLatestVideoId() {
+      try {
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'video/'&orderBy=modifiedTime desc&pageSize=1&fields=files(id)&key=${API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return (data.files && data.files.length > 0) ? data.files[0].id : null;
+      } catch (err) {
+        console.error("Drive Fetch Error:", err);
+        return null;
+      }
+    }
+
+    window.addEventListener("load", () => {
+      const videoEl = document.querySelector("#arVideo");
+      const videoStage = document.querySelector("#videoStage");
+      const target = document.querySelector("#targetRoot");
+      const curtain = document.querySelector("#curtain");
+      const playBtn = document.querySelector("#playBtn");
+      const sceneEl = document.querySelector('a-scene');
+
+      let isPlaying = false;
+
+      sceneEl.addEventListener("arReady", () => {
+        curtain.style.opacity = "0";
+        setTimeout(() => { curtain.style.display = "none"; }, 600);
+      });
+
+      function adjustPlaneToVideoRatio() {
+        if (!videoStage || !videoEl) return;
+        const w = videoEl.videoWidth;
+        const h = videoEl.videoHeight;
+        if (w > 0 && h > 0) {
+          const ratio = w / h;
+          videoStage.setAttribute('geometry', {
+            primitive: 'plane',
+            width: ratio >= 1 ? 1 : ratio,
+            height: ratio >= 1 ? (1 / ratio) : 1
+          });
+        }
+      }
+
+      videoEl.addEventListener('loadedmetadata', adjustPlaneToVideoRatio);
+      videoEl.addEventListener('playing', adjustPlaneToVideoRatio);
+
+      target.addEventListener("targetFound", async () => {
+        document.body.classList.add("tracked");
+        const fileId = await getLatestVideoId();
+        if (fileId) {
+          const newSrc = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+          if (videoEl.src !== newSrc) {
+            videoEl.src = newSrc;
+            videoEl.load();
+          }
+        }
+      });
+
+      target.addEventListener("targetLost", () => {
+        document.body.classList.remove("tracked");
+        videoEl.pause();
+        isPlaying = false;
+        playBtn.textContent = "▶ Play Video";
+      });
+
+      playBtn.addEventListener("click", async () => {
+        try {
+          if (!isPlaying) {
+            videoEl.muted = false;
+            await videoEl.play();
+            playBtn.textContent = "⏸ Pause Video";
+            isPlaying = true;
+          } else {
+            videoEl.pause();
+            playBtn.textContent = "▶ Play Video";
+            isPlaying = false;
+          }
+        } catch (err) {
+          console.error("Playback error:", err);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

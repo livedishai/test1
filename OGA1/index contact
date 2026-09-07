@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JEWELS-AI | Live Drive AR</title>
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #blackCurtain {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    #loader {
+      color: white;
+      text-align: center;
+      font-size: 18px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* Video Control Button Panel */
+    .button-panel {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      z-index: 100;
+    }
+
+    .plan-button {
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #5E0F8B 0%, #3e0a5c 100%);
+      color: #fff;
+      cursor: pointer;
+      min-width: 160px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      transition: transform 0.2s;
+    }
+
+    .plan-button:active {
+      transform: scale(0.96);
+    }
+
+    /* AR Floating Quick-Action Bar */
+    #quickActionBar {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 12px;
+      z-index: 1000;
+      background: rgba(18, 18, 18, 0.75);
+      padding: 8px 14px;
+      border-radius: 30px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      animation: fadeInDown 0.4s ease-out;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translate(-50%, -20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    .action-icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      text-decoration: none;
+      font-size: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-icon-btn:hover {
+      background: #5E0F8B;
+      transform: translateY(-2px);
+    }
+
+    #instagramButton {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      width: 48px;
+      height: 48px;
+      z-index: 1000;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      text-decoration: none;
+    }
+
+    #instagramButton img {
+      width: 32px;
+      height: 32px;
+    }
+
+    /* REMOVE A-FRAME VR BUTTON COMPLETELY */
+    .a-enter-vr,
+    .a-enter-ar,
+    .a-orientation-modal {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* Hide only MindAR overlay icons without killing camera DOM */
+    .mindar-ui-loading, .mindar-ui-compatibility {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="blackCurtain">
+    <div id="loader">Initializing Camera & AR...</div>
+  </div>
+
+  <!-- Floating Business Card Actions -->
+  <div id="quickActionBar">
+    <a href="https://wa.me/919999999999" target="_blank" class="action-icon-btn" title="Chat on WhatsApp">💬</a>
+    <a href="tel:+919999999999" class="action-icon-btn" title="Call Now">📞</a>
+    <button id="saveContactBtn" class="action-icon-btn" title="Save Contact (.vcf)">👤</button>
+    <a href="https://maps.google.com/?q=Jewels+AI+Bangalore" target="_blank" class="action-icon-btn" title="Locate on Map">📍</a>
+    <a href="https://jewels-ai.online" target="_blank" class="action-icon-btn" title="Visit Website">🌐</a>
+  </div>
+
+  <a href="https://www.instagram.com/overlay_gifts_ai/" target="_blank" id="instagramButton">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram">
+  </a>
+
+  <div class="button-panel" id="planButtons">
+    <button class="plan-button" id="toggleButton">▶️ Play Video</button>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiError: no; filterMinCF:0.0001; filterBeta: 0.001;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    renderer="antialias: true; alpha: true">
+
+    <a-assets>
+      <video
+        id="driveVideo"
+        playsinline
+        webkit-playsinline
+        preload="auto"
+        loop
+        crossorigin="anonymous">
+      </video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity id="target1" mindar-image-target="targetIndex: 0">
+      <a-plane
+        id="videoPlane"
+        width="1"
+        height="1"
+        visible="false"
+        material="src: #driveVideo; side: double; transparent: true">
+      </a-plane>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const API_KEY = "AIzaSyA_mBu6emRKASkqHpLtwkdBiCQKYO3rvcw"; 
+    const FOLDER_ID = "1jRyVReP4cq7yk1VqwdFCMt0w4on4S77Q";
+
+    // One-Tap vCard (.vcf) Generator Function
+    function downloadVCard() {
+      const vcardData = [
+        "BEGIN:VCARD",
+        "VERSION:3.0",
+        "FN:Nishanth - Jewels AI",
+        "ORG:Jewels-AI",
+        "TITLE:Founder & Developer",
+        "TEL;TYPE=CELL:+919999999999",
+        "EMAIL:contact@jewels-ai.online",
+        "URL:https://jewels-ai.online",
+        "NOTE:Augmented Reality & AI Solutions for Retail & Gifting",
+        "END:VCARD"
+      ].join("\n");
+
+      const blob = new Blob([vcardData], { type: "text/vcard;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "Nishanth_JewelsAI.vcf");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    async function getLatestVideoId() {
+      try {
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'video/'&orderBy=modifiedTime desc&pageSize=1&fields=files(id)&key=${API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return (data.files && data.files.length > 0) ? data.files[0].id : null;
+      } catch (error) {
+        console.error("Drive Fetch Error:", error);
+        return null;
+      }
+    }
+
+    window.addEventListener("load", () => {
+      const videoEl = document.querySelector("#driveVideo");
+      const videoPlane = document.querySelector("#videoPlane");
+      const target = document.querySelector("#target1");
+      const toggleButton = document.querySelector("#toggleButton");
+      const buttonsContainer = document.querySelector("#planButtons");
+      const quickActionBar = document.querySelector("#quickActionBar");
+      const saveContactBtn = document.querySelector("#saveContactBtn");
+      const curtain = document.querySelector("#blackCurtain");
+      const sceneEl = document.querySelector('a-scene');
+
+      let isPlaying = false;
+
+      if (saveContactBtn) {
+        saveContactBtn.addEventListener("click", downloadVCard);
+      }
+
+      function dismissCurtain() {
+        if (curtain) {
+          curtain.style.opacity = "0";
+          setTimeout(() => { curtain.style.display = "none"; }, 500);
+        }
+      }
+
+      sceneEl.addEventListener("arReady", dismissCurtain);
+      sceneEl.addEventListener("arError", (err) => {
+        console.error("MindAR failed to start:", err);
+        dismissCurtain();
+      });
+
+      function adjustPlaneToVideoRatio() {
+        if (!videoPlane || !videoEl) return;
+        const w = videoEl.videoWidth;
+        const h = videoEl.videoHeight;
+
+        if (w > 0 && h > 0) {
+          const aspectRatio = w / h;
+          const targetWidth = aspectRatio >= 1 ? 1 : aspectRatio;
+          const targetHeight = aspectRatio >= 1 ? (1 / aspectRatio) : 1;
+
+          videoPlane.setAttribute('geometry', {
+            primitive: 'plane',
+            width: targetWidth,
+            height: targetHeight
+          });
+        }
+      }
+
+      videoEl.addEventListener('loadedmetadata', adjustPlaneToVideoRatio);
+      videoEl.addEventListener('playing', () => {
+        adjustPlaneToVideoRatio();
+        if (videoPlane) videoPlane.setAttribute('visible', 'true');
+      });
+
+      target.addEventListener("targetFound", async () => {
+        buttonsContainer.style.display = "block";
+        if (quickActionBar) quickActionBar.style.display = "flex";
+
+        const fileId = await getLatestVideoId();
+        if (fileId) {
+          const newSrc = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+          if (videoEl.src !== newSrc) {
+            videoEl.src = newSrc;
+            videoEl.load();
+          }
+        }
+      });
+
+      target.addEventListener("targetLost", () => {
+        buttonsContainer.style.display = "none";
+        if (quickActionBar) quickActionBar.style.display = "none";
+
+        videoEl.pause();
+        if (videoPlane) videoPlane.setAttribute('visible', 'false');
+        isPlaying = false;
+        toggleButton.textContent = "▶️ Play Video";
+      });
+
+      toggleButton.addEventListener("click", async () => {
+        try {
+          if (!isPlaying) {
+            videoEl.muted = false;
+            await videoEl.play();
+            toggleButton.textContent = "⏸ Pause Video";
+            isPlaying = true;
+          } else {
+            videoEl.pause();
+            toggleButton.textContent = "▶️ Play Video";
+            isPlaying = false;
+          }
+        } catch (err) {
+          console.error("Playback error:", err);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
