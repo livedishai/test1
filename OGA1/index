@@ -40,6 +40,7 @@
       user-select: none;
     }
 
+    /* ---------- Loading Screen ---------- */
     #blackCurtain {
       position: fixed;
       inset: 0;
@@ -95,6 +96,7 @@
       margin-top: 6px;
     }
 
+    /* ---------- Brand mark ---------- */
     #brandMark {
       position: fixed;
       top: max(18px, env(safe-area-inset-top));
@@ -129,6 +131,7 @@
       box-shadow: 0 0 8px var(--gold);
     }
 
+    /* ---------- Scan hint ---------- */
     #scanHint {
       position: fixed;
       top: 50%;
@@ -187,6 +190,7 @@
       opacity: 0;
     }
 
+    /* ---------- Bottom Control Panel ---------- */
     .button-panel {
       position: fixed;
       bottom: max(28px, env(safe-area-inset-bottom));
@@ -238,6 +242,7 @@
       transform: scale(0.96);
     }
 
+    /* ---------- FUTURISTIC FULLSCREEN CATALOGUE ---------- */
     #catalogSheet {
       position: fixed;
       inset: 0;
@@ -260,6 +265,7 @@
       opacity: 1;
     }
 
+    /* Ambient animated holographic grid & beams */
     .catalog-bg {
       position: absolute;
       inset: 0;
@@ -378,6 +384,7 @@
       background: rgba(229,193,88,0.2);
     }
 
+    /* Cyber Search Bar */
     .search-wrap {
       padding: 0 22px 12px;
       position: relative;
@@ -414,6 +421,7 @@
       pointer-events: none;
     }
 
+    /* Holographic Category Selector */
     .category-scroll {
       display: flex;
       gap: 10px;
@@ -447,6 +455,7 @@
       transform: scale(1.04);
     }
 
+    /* Holographic Product Grid */
     .catalog-grid {
       position: relative;
       z-index: 1;
@@ -490,6 +499,7 @@
       cursor: pointer;
     }
 
+    /* Cyber holographic corner trims */
     .catalog-card::before {
       content: "";
       position: absolute;
@@ -581,6 +591,7 @@
       font-size: 10px;
     }
 
+    /* ---------- WhatsApp Quick FAB ---------- */
     .social-fab {
       position: fixed;
       bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px));
@@ -619,6 +630,7 @@
     .social-fab a:active { transform: scale(0.9); }
     .social-fab svg { width: 24px; height: 24px; }
 
+    /* ---------- Floating Hologram Quick Inspector Modal ---------- */
     #productModal {
       position: fixed;
       inset: 0;
@@ -778,10 +790,9 @@
 
       <div class="category-scroll" id="categoryTabs">
         <button class="category-chip active" data-cat="all">All Vault</button>
-        <button class="category-chip" data-cat="Bridal Collection">Bridal Collection</button>
-        <button class="category-chip" data-cat="Necklace">Necklace</button>
-        <button class="category-chip" data-cat="Bangles">Bangles</button>
-        <button class="category-chip" data-cat="Rings">Rings</button>
+        <button class="category-chip" data-cat="bridal">Bridal</button>
+        <button class="category-chip" data-cat="necklaces">Necklaces</button>
+        <button class="category-chip" data-cat="bangles">Bangles</button>
       </div>
     </div>
 
@@ -824,53 +835,14 @@
   <script>
     const API_KEY = "AIzaSyA_mBu6emRKASkqHpLtwkdBiCQKYO3rvcw"; 
     const FOLDER_ID = "1jRyVReP4cq7yk1VqwdFCMt0w4on4S77Q";
-    const STORE_WHATSAPP = "910000000000"; // Replace with your WhatsApp number
+    const STORE_WHATSAPP = "910000000000"; // Replace with your number
 
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyngfPB7bGYIKPDDJk6ZSumck8AcnX586OISrt0AfPAzzibiFNS0GmqO3QF9q5C464K/exec";
-    let CATALOG_ITEMS = [];
-
-    // Formats any Drive ID or URL into Google's direct CDN format
-    function toDirectDriveUrl(raw) {
-      if (!raw) return "";
-      const match = String(raw).match(/[-\w]{25,}/);
-      const id = match ? match[0] : raw;
-      return `https://lh3.googleusercontent.com/d/${id}`;
-    }
-
-    async function loadCatalogue() {
-      const list = document.querySelector("#catalogList");
-      if (list && CATALOG_ITEMS.length === 0) {
-        list.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--cream-dim)">Loading collection…</div>';
-      }
-
-      try {
-        const response = await fetch(APPS_SCRIPT_URL + "?action=getCatalogue&t=" + Date.now(), {
-          method: "GET",
-          cache: "no-store"
-        });
-        if (!response.ok) throw new Error("Catalogue API HTTP " + response.status);
-
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || "Catalogue API failed");
-
-        const rawList = Array.isArray(data.items) ? data.items : [];
-        CATALOG_ITEMS = rawList.map(item => ({
-          name: item.name || "Handcrafted Jewellery",
-          category: item.category || "Jewellery",
-          purity: item.purity || "22K BIS HALLMARKED",
-          price: item.price || "Enquire for Price",
-          img: toDirectDriveUrl(item.imageUrl || item.img || item.fileId || "")
-        }));
-
-        return true;
-      } catch (error) {
-        console.error("Catalogue Fetch Error:", error);
-        if (list && CATALOG_ITEMS.length === 0) {
-          list.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--cream-dim)">Unable to load the live catalogue.<br><small>Please try again.</small></div>';
-        }
-        return false;
-      }
-    }
+    const CATALOG_ITEMS = [
+      { id: 1, name: "Kundan Royal Choker", category: "bridal", purity: "22K Yellow Gold", price: "₹2,45,000", img: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500" },
+      { id: 2, name: "Temple Heritage Haram", category: "necklaces", purity: "22K Antique Polish", price: "₹3,10,000", img: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500" },
+      { id: 3, name: "Filigree Bridal Kadas", category: "bangles", purity: "22K Solid Gold", price: "₹1,85,000", img: "https://images.unsplash.com/photo-1611591475824-7890f576e107?w=500" },
+      { id: 4, name: "Rani Haar Polki Ensemble", category: "bridal", purity: "24K Foil Kundan", price: "₹4,20,000", img: "https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?w=500" }
+    ];
 
     async function getLatestVideoId() {
       try {
@@ -901,6 +873,7 @@
       const catalogSearch = document.querySelector("#catalogSearch");
       const sheetHandle = document.querySelector("#sheetHandle");
 
+      // Inspection modal elements
       const productModal = document.querySelector("#productModal");
       const modalImg = document.querySelector("#modalImg");
       const modalName = document.querySelector("#modalName");
@@ -917,7 +890,7 @@
         catalogList.innerHTML = "";
 
         const filtered = CATALOG_ITEMS.filter(item => {
-          const matchesCat = activeCategory === "all" || item.category.toLowerCase() === activeCategory.toLowerCase();
+          const matchesCat = activeCategory === "all" || item.category === activeCategory;
           const matchesQuery = !query || item.name.toLowerCase().includes(query);
           return matchesCat && matchesQuery;
         });
@@ -936,11 +909,11 @@
         filtered.forEach((item, index) => {
           const card = document.createElement("div");
           card.className = "catalog-card";
-          card.style.animationDelay = `${index * 50}ms`;
+          card.style.animationDelay = `${index * 60}ms`;
           card.innerHTML = `
             <div class="img-wrap">
-              <span class="purity-badge">${(item.purity || "JEWELLERY").split(' ')[0]}</span>
-              <img src="${item.img}" alt="${item.name}" referrerpolicy="no-referrer" loading="lazy" />
+              <span class="purity-badge">${item.purity.split(' ')[0]}</span>
+              <img src="${item.img}" alt="${item.name}" loading="lazy" />
             </div>
             <div class="tag">${item.category}</div>
             <div class="name">${item.name}</div>
@@ -954,7 +927,7 @@
             selectedProduct = item;
             modalImg.src = item.img;
             modalName.textContent = item.name;
-            modalPurity.textContent = `${item.purity}${item.price ? " • " + item.price : ""}`;
+            modalPurity.textContent = `${item.purity} • ${item.price}`;
             productModal.classList.add("visible");
           });
 
@@ -962,7 +935,7 @@
         });
       }
 
-      loadCatalogue().then(() => renderCatalog());
+      renderCatalog();
 
       categoryTabs.forEach(chip => {
         chip.addEventListener("click", () => {
@@ -975,11 +948,9 @@
 
       catalogSearch.addEventListener("input", renderCatalog);
 
-      async function openCatalog() {
+      function openCatalog() {
         catalogSheet.classList.add("open");
         document.body.classList.add("catalog-open");
-        await loadCatalogue();
-        renderCatalog();
       }
 
       function closeCatalog() {
@@ -990,13 +961,15 @@
       openCatalogBtn.addEventListener("click", openCatalog);
       closeCatalogBtn.addEventListener("click", closeCatalog);
 
+      // Modal Actions
       modalCloseBtn.addEventListener("click", () => productModal.classList.remove("visible"));
       modalWhatsAppBtn.addEventListener("click", () => {
         if (!selectedProduct) return;
-        const msg = encodeURIComponent(`Hi, I'm interested in viewing the ${selectedProduct.name} (${selectedProduct.category}) from your Jewels-AI Catalogue!`);
+        const msg = encodeURIComponent(`Hi, I'm interested in viewing the ${selectedProduct.name} (${selectedProduct.price}) from your Jewels-AI AR Showcase!`);
         window.open(`https://wa.me/${STORE_WHATSAPP}?text=${msg}`, "_blank");
       });
 
+      // Drag to dismiss
       let dragStartY = 0;
       let dragDeltaY = 0;
       let dragging = false;
