@@ -847,11 +847,43 @@
         }
       }
 
-      sceneEl.addEventListener("arReady", dismissCurtain);
+      let curtainDismissed = false;
+      function dismissCurtainOnce(reason) {
+        if (curtainDismissed) return;
+        curtainDismissed = true;
+        console.log("Dismissing curtain, reason:", reason);
+        dismissCurtain();
+      }
+
+      sceneEl.addEventListener("arReady", () => dismissCurtainOnce("arReady event"));
       sceneEl.addEventListener("arError", (err) => {
         console.error("MindAR failed to start:", err);
-        dismissCurtain();
+        dismissCurtainOnce("arError event");
       });
+
+      // Fallback #1: MindAR attaches its own <video> element to the DOM to
+      // show the live camera feed. If it starts playing, the camera is
+      // clearly working even if arReady never fires — dismiss the curtain.
+      const curtainWatcher = setInterval(() => {
+        const camFeed = document.querySelector('video.mindar-camera, video[autoplay]');
+        if (camFeed && camFeed.readyState >= 2 && !camFeed.paused) {
+          dismissCurtainOnce("camera video element playing");
+          clearInterval(curtainWatcher);
+        }
+      }, 300);
+
+      // Fallback #2: hard timeout so the app never gets stuck behind the
+      // purple curtain even if MindAR gives no signal at all. If you hit
+      // this in testing, open the browser console — it means arReady
+      // never fired, which usually means targets.mind failed to load or
+      // camera permission was blocked/denied.
+      setTimeout(() => {
+        clearInterval(curtainWatcher);
+        if (!curtainDismissed) {
+          console.warn("AR did not report ready within 6s — force-dismissing curtain. Check that targets.mind is reachable and camera permission was granted.");
+        }
+        dismissCurtainOnce("6s timeout fallback");
+      }, 6000);
 
       function adjustPlaneToVideoRatio() {
         if (!videoPlane || !videoEl) return;
