@@ -42,7 +42,7 @@
       overflow: hidden;
     }
 
-    /* Dim and blur the live camera scene when the catalog is open */
+    /* Dim & soften the live camera feed behind open catalog */
     body.catalog-open a-scene,
     body.catalog-open #rawCameraFeed {
       filter: brightness(0.25) saturate(0.7) blur(10px);
@@ -213,31 +213,7 @@
       opacity: 0;
     }
 
-    /* Control Panel */
-    .button-panel {
-      position: fixed;
-      bottom: max(28px, env(safe-area-inset-bottom));
-      left: 50%;
-      transform: translateX(-50%) translateY(16px);
-      display: flex;
-      gap: 12px;
-      opacity: 0;
-      z-index: 100;
-      transition: opacity 0.45s ease, transform 0.45s ease;
-      pointer-events: none;
-    }
-
-    body.found .button-panel {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-      pointer-events: auto;
-    }
-
-    body.catalog-open .button-panel {
-      opacity: 0;
-      pointer-events: none;
-    }
-
+    /* ---------- UI Buttons Styling ---------- */
     .plan-button {
       position: relative;
       overflow: hidden;
@@ -254,21 +230,59 @@
       cursor: pointer;
       box-shadow: 0 8px 24px rgba(0,0,0,0.45);
       backdrop-filter: blur(6px);
-      transition: transform 0.15s ease;
+      -webkit-backdrop-filter: blur(6px);
+      transition: transform 0.15s ease, opacity 0.4s ease;
       white-space: nowrap;
-    }
-
-    .plan-button.catalog-trigger {
-      background: rgba(19, 8, 33, 0.85);
-      border: 1px solid var(--gold);
-      color: var(--gold-soft);
     }
 
     .plan-button:active {
       transform: scale(0.96);
     }
 
-    /* Full-Page 3D Catalog */
+    /* Fixed Permanent Bottom-Left Catalog Button */
+    #openCatalogBtn {
+      position: fixed;
+      bottom: max(25px, env(safe-area-inset-bottom));
+      left: 20px;
+      z-index: 1000;
+      background: rgba(19, 8, 33, 0.85);
+      border: 1px solid var(--gold);
+      color: var(--gold-soft);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    body.catalog-open #openCatalogBtn {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Center Target Video Button Panel */
+    .video-panel {
+      position: fixed;
+      bottom: max(28px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      display: flex;
+      opacity: 0;
+      z-index: 100;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      pointer-events: none;
+    }
+
+    body.found .video-panel {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    body.catalog-open .video-panel {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ================= Full-Page 3D Catalog ================= */
     #catalogStage {
       position: fixed;
       inset: 0;
@@ -524,35 +538,6 @@
       font-style: italic;
     }
 
-    #instagramButton {
-      position: fixed;
-      bottom: max(25px, env(safe-area-inset-bottom));
-      right: 20px;
-      width: 48px;
-      height: 48px;
-      z-index: 1000;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 14px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-      text-decoration: none;
-      transition: opacity 0.3s ease;
-    }
-
-    body.catalog-open #instagramButton { opacity: 0; pointer-events: none; }
-
-    #instagramButton img {
-      width: 24px;
-      height: 24px;
-      filter: sepia(1) saturate(3) hue-rotate(-10deg) brightness(1.15);
-    }
-
     .a-enter-vr, .a-enter-ar, .a-orientation-modal, .mindar-ui-loading, .mindar-ui-compatibility {
       display: none !important;
     }
@@ -589,14 +574,12 @@
     <p>Align with drive card</p>
   </div>
 
-  <a href="https://www.instagram.com/overlay_gifts_ai/" target="_blank" id="instagramButton">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram">
-  </a>
+  <!-- Permanent Bottom-Left Catalog Button -->
+  <button class="plan-button" id="openCatalogBtn">📖 Catalog</button>
 
-  <!-- Control Buttons -->
-  <div class="button-panel" id="planButtons">
+  <!-- Centered Video Controls (appears only on target detected) -->
+  <div class="video-panel" id="videoControls">
     <button class="plan-button" id="toggleButton">▶ Play Video</button>
-    <button class="plan-button catalog-trigger" id="openCatalogBtn">📖 Catalog</button>
   </div>
 
   <!-- Full-Page 3D Catalog -->
@@ -636,7 +619,6 @@
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Target entity initialized hidden to prevent (0,0,0) world-origin display artifacts -->
     <a-entity id="target1" mindar-image-target="targetIndex: 0" visible="false">
       <a-plane id="videoPlane" width="1" height="1" visible="false" material="src: #driveVideo; side: double; transparent: true"></a-plane>
     </a-entity>
@@ -766,7 +748,6 @@
       const videoPlane = document.querySelector("#videoPlane");
       const target = document.querySelector("#target1");
       const toggleButton = document.querySelector("#toggleButton");
-      const buttonsContainer = document.querySelector("#planButtons");
       const curtain = document.querySelector("#blackCurtain");
       const sceneEl = document.querySelector('a-scene');
 
@@ -842,7 +823,6 @@
         }
       }
 
-      // Catalog Open: freeze video playback, stop audio, and pause camera tracking
       function openCatalog() {
         if (catalogTransitioning) return;
         catalogTransitioning = true;
@@ -859,7 +839,6 @@
         setTimeout(() => { catalogTransitioning = false; }, 300);
       }
 
-      // Catalog Close: resume camera, keeping video stopped on current frame
       function closeCatalog() {
         if (catalogTransitioning) return;
         catalogTransitioning = true;
@@ -928,7 +907,6 @@
       // TARGET FOUND
       target.addEventListener("targetFound", async () => {
         document.body.classList.add("found");
-        buttonsContainer.style.display = "flex";
 
         if (!currentLoadedFileId) {
           const fileId = await getLatestVideoId();
@@ -939,7 +917,6 @@
           }
         }
 
-        // Ready to resume from frozen frame upon tap
         isPlaying = false;
         toggleButton.textContent = "▶ Play Video";
 
@@ -951,7 +928,7 @@
         }
       });
 
-      // TARGET LOST: Pause video, keep current frame, hide 3D objects completely
+      // TARGET LOST
       target.addEventListener("targetLost", () => {
         document.body.classList.remove("found");
         closeCatalog();
@@ -972,7 +949,7 @@
         toggleButton.textContent = "▶ Play Video";
       });
 
-      // PLAY/PAUSE MANUAL CONTROL
+      // PLAY/PAUSE
       toggleButton.addEventListener("click", async () => {
         try {
           if (!isPlaying) {
