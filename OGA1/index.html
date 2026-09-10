@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>JEWELS-AI | Live Drive AR</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root {
+      --deep: #130821;
+      --deep-2: #1f0d33;
+      --brand-purple: #5E0F8B;
+      --brand-purple-dark: #2c0a49;
+      --gold: #D4AF37;
+      --gold-soft: #F0D687;
+      --cream: #F5EFE6;
+      --cream-dim: rgba(245, 239, 230, 0.62);
+      --glass: rgba(245, 239, 230, 0.08);
+      --glass-border: rgba(212, 175, 55, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      background: var(--deep);
+      overflow: hidden;
+      font-family: 'Manrope', sans-serif;
+      color: var(--cream);
+      -webkit-tap-highlight-color: transparent;
+      height: 100%;
+    }
+
+    body.catalog-open {
+      overflow: hidden;
+    }
+
+    /* When the catalog is open, the live camera view dims and softens */
+    body.catalog-open a-scene,
+    body.catalog-open #rawCameraFeed {
+      filter: brightness(0.25) saturate(0.7) blur(10px);
+      transition: filter 0.6s ease;
+      pointer-events: none;
+    }
+    a-scene { transition: filter 0.4s ease; }
+
+    /* Guaranteed fallback camera preview */
+    #rawCameraFeed {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      background: #000;
+      transition: filter 0.4s ease;
+    }
+
+    #blackCurtain {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 40%, var(--deep-2) 0%, var(--deep) 70%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 22px;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+
+    .gem-loader {
+      width: 56px;
+      height: 56px;
+      animation: gemSpin 2.6s ease-in-out infinite;
+    }
+
+    .gem-loader path {
+      fill: none;
+      stroke: var(--gold);
+      stroke-width: 1.4;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 6px rgba(212,175,55,0.55));
+    }
+
+    @keyframes gemSpin {
+      0%   { transform: rotate(0deg) scale(1); }
+      50%  { transform: rotate(180deg) scale(1.08); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    #loader {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 500;
+      font-style: italic;
+      font-size: 19px;
+      letter-spacing: 2px;
+      color: var(--cream);
+      text-align: center;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    #loader span {
+      display: block;
+      font-family: 'Manrope', sans-serif;
+      font-style: normal;
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--gold-soft);
+      margin-top: 6px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+
+    #brandMark {
+      position: fixed;
+      top: max(18px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 999px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: 3px;
+      color: var(--gold-soft);
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    #brandMark::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 8px var(--gold);
+    }
+
+    #scanHint {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 400;
+      width: min(64vw, 260px);
+      aspect-ratio: 1;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      pointer-events: none;
+    }
+
+    #scanHint .corner {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 2px solid var(--gold);
+      opacity: 0.85;
+    }
+    #scanHint .tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
+    #scanHint .tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
+    #scanHint .bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
+    #scanHint .br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
+
+    #scanHint .scanline {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      height: 1.5px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      box-shadow: 0 0 8px var(--gold);
+      animation: scanMove 2.2s ease-in-out infinite;
+    }
+
+    @keyframes scanMove {
+      0%   { top: 6%; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: 92%; opacity: 0; }
+    }
+
+    #scanHint p {
+      position: absolute;
+      bottom: -34px;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cream-dim);
+    }
+
+    body.found #scanHint,
+    body.found #brandMark {
+      opacity: 0;
+    }
+
+    /* ---------- Bottom Control Panel ---------- */
+    .button-panel {
+      position: fixed;
+      bottom: max(28px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      display: flex;
+      gap: 12px;
+      opacity: 0;
+      z-index: 100;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      pointer-events: none;
+    }
+
+    body.found .button-panel {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    body.catalog-open .button-panel {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .plan-button {
+      position: relative;
+      overflow: hidden;
+      padding: 13px 24px;
+      font-family: 'Manrope', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      border: 1px solid var(--glass-border);
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%);
+      color: var(--cream);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      backdrop-filter: blur(6px);
+      transition: transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .plan-button.catalog-trigger {
+      background: rgba(19, 8, 33, 0.85);
+      border: 1px solid var(--gold);
+      color: var(--gold-soft);
+    }
+
+    .plan-button:active {
+      transform: scale(0.96);
+    }
+
+    /* ================= Full-Page 3D Catalog ================= */
+    #catalogStage {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      perspective: 2200px;
+      pointer-events: none;
+    }
+
+    #catalogSheet {
+      position: absolute;
+      inset: 0;
+      height: 100dvh;
+      width: 100vw;
+      background:
+        radial-gradient(ellipse at 20% -10%, rgba(94,15,139,0.45) 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 0%, rgba(212,175,55,0.12) 0%, transparent 45%),
+        linear-gradient(180deg, var(--deep-2) 0%, var(--deep) 100%);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-style: preserve-3d;
+      transform-origin: 50% 100%;
+      transform: rotateX(-100deg) translateY(30px) scale(0.94);
+      opacity: 0;
+      transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    #catalogSheet.open {
+      transform: rotateX(0deg) translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #catalogSheet::before {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0.7;
+    }
+
+    .sparkle-field {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px 1px rgba(212,175,55,0.8);
+      animation-name: sparkleFloat;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+    }
+
+    @keyframes sparkleFloat {
+      0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.25; }
+      50%      { transform: translateY(-18px) scale(1.2); opacity: 0.9; }
+    }
+
+    .sheet-header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: max(18px, env(safe-area-inset-top)) 20px 16px;
+      background: linear-gradient(180deg, rgba(19,8,33,0.9) 0%, rgba(19,8,33,0) 100%);
+      flex-shrink: 0;
+    }
+
+    .back-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      color: var(--gold-soft);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .back-btn:active { transform: scale(0.9); }
+
+    .sheet-header-text { display: flex; flex-direction: column; gap: 2px; }
+
+    .sheet-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 25px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+      background: linear-gradient(100deg, var(--gold-soft) 20%, #fff 45%, var(--gold-soft) 70%);
+      background-size: 220% auto;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    #catalogSheet.open .sheet-title {
+      animation: titleShine 2.2s ease-out 0.35s 1;
+    }
+
+    @keyframes titleShine {
+      0%   { background-position: 200% center; }
+      100% { background-position: 0% center; }
+    }
+
+    .sheet-subtitle {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--cream-dim);
+    }
+
+    /* Category Pill Navigation */
+    .category-scroll {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      gap: 10px;
+      padding: 2px 20px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+    }
+    .category-scroll::-webkit-scrollbar { display: none; }
+
+    .category-chip {
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--cream);
+      font-size: 12px;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: capitalize;
+    }
+
+    .category-chip.active {
+      background: var(--gold);
+      color: var(--deep);
+      border-color: var(--gold);
+      font-weight: 700;
+    }
+
+    /* Catalog Cards Grid */
+    .catalog-grid {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 6px 20px 40px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      transform-style: preserve-3d;
+      perspective: 900px;
+    }
+
+    .catalog-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transform-style: preserve-3d;
+      will-change: transform;
+      transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      opacity: 0;
+      animation: cardRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .catalog-card:active {
+      transition: transform 0.05s ease;
+    }
+
+    @keyframes cardRise {
+      from { opacity: 0; transform: translateY(26px) rotateX(18deg) scale(0.92); }
+      to   { opacity: 1; transform: translateY(0) rotateX(0) scale(1); }
+    }
+
+    .catalog-card .thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      transform-style: preserve-3d;
+    }
+
+    .catalog-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: translateZ(0);
+    }
+
+    .catalog-card .thumb-wrap::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.28) 48%, transparent 60%);
+      transform: translateX(-120%);
+      pointer-events: none;
+    }
+    .catalog-card:hover .thumb-wrap::after,
+    .catalog-card.tilting .thumb-wrap::after {
+      transform: translateX(120%);
+      transition: transform 0.7s ease;
+    }
+
+    .catalog-card .name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--cream);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .catalog-card .tag {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--gold-soft);
+      letter-spacing: 1px;
+    }
+
+    .catalog-empty {
+      grid-column: span 2;
+      text-align: center;
+      color: var(--cream-dim);
+      padding: 60px 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 17px;
+      font-style: italic;
+    }
+
+    /* Instagram button */
+    #instagramButton {
+      position: fixed;
+      bottom: max(25px, env(safe-area-inset-bottom));
+      right: 20px;
+      width: 48px;
+      height: 48px;
+      z-index: 1000;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+      text-decoration: none;
+      transition: opacity 0.3s ease;
+    }
+
+    body.catalog-open #instagramButton { opacity: 0; pointer-events: none; }
+
+    #instagramButton img {
+      width: 24px;
+      height: 24px;
+      filter: sepia(1) saturate(3) hue-rotate(-10deg) brightness(1.15);
+    }
+
+    .a-enter-vr, .a-enter-ar, .a-orientation-modal, .mindar-ui-loading, .mindar-ui-compatibility {
+      display: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #catalogSheet, .catalog-card, .sheet-title, .sparkle {
+        animation: none !important;
+        transition: opacity 0.3s ease !important;
+      }
+      #catalogSheet { transform: none !important; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Guaranteed raw camera preview, sits behind the AR canvas -->
+  <video id="rawCameraFeed" autoplay playsinline muted></video>
+
+  <div id="blackCurtain">
+    <svg class="gem-loader" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 4 L48 20 L28 52 L8 20 Z M8 20 L48 20 M18 20 L28 4 L38 20 M18 20 L28 52 M38 20 L28 52" />
+    </svg>
+    <div id="loader">Initializing<span>Camera &amp; AR</span></div>
+  </div>
+
+  <div id="brandMark">JEWELS·AI</div>
+
+  <div id="scanHint">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+    <div class="scanline"></div>
+    <p>Align with drive card</p>
+  </div>
+
+  <a href="https://www.instagram.com/overlay_gifts_ai/" target="_blank" id="instagramButton">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram">
+  </a>
+
+  <!-- Control Buttons -->
+  <div class="button-panel" id="planButtons">
+    <button class="plan-button" id="toggleButton">▶ Play Video</button>
+    <button class="plan-button catalog-trigger" id="openCatalogBtn">📖 Catalog</button>
+  </div>
+
+  <!-- Full-Page 3D Catalog -->
+  <div id="catalogStage">
+    <div id="catalogSheet">
+      <div class="sparkle-field" id="sparkleField"></div>
+
+      <div class="sheet-header">
+        <button class="back-btn" id="closeCatalogBtn" aria-label="Close catalog">←</button>
+        <div class="sheet-header-text">
+          <div class="sheet-title">Collection Showcase</div>
+          <div class="sheet-subtitle">Tap a piece to catch the light</div>
+        </div>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="category-scroll" id="categoryTabs">
+        <button class="category-chip active" data-cat="all">All</button>
+        <button class="category-chip" data-cat="bridal">Bridal</button>
+        <button class="category-chip" data-cat="necklaces">Necklaces</button>
+        <button class="category-chip" data-cat="bangles">Bangles</button>
+        <button class="category-chip" data-cat="rings">Rings</button>
+      </div>
+
+      <!-- Dynamic Item Container -->
+      <div class="catalog-grid" id="catalogList"></div>
+    </div>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiError: no; filterMinCF:0.0001; filterBeta: 0.001;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    renderer="antialias: true; alpha: true">
+
+    <a-assets>
+      <video id="driveVideo" playsinline webkit-playsinline preload="auto" loop crossorigin="anonymous"></video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity id="target1" mindar-image-target="targetIndex: 0">
+      <a-plane id="videoPlane" width="1" height="1" visible="false" material="src: #driveVideo; side: double; transparent: true"></a-plane>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const API_KEY = "AIzaSyA_mBu6emRKASkqHpLtwkdBiCQKYO3rvcw"; 
+    const FOLDER_ID = "1jRyVReP4cq7yk1VqwdFCMt0w4on4S77Q";
+
+    // Mapped Drive Folder IDs for each jewelry category
+    const CATALOG_FOLDERS = {
+      bangles: "1loeb_40A3eOjzB2PnY24MXsxKFsE06L-",
+      bridal: "1RQJWVfvRpvcQw_DdhWxZKB18-GzKoD3B",
+      necklaces: "1Zmg8bnpmOChwqwrVWFeBCvXxOEQihC3Q",
+      rings: "1Xz92BSq1jtdxJyiKO5o7lzx0bepnDQzz"
+    };
+
+    let CATALOG_ITEMS = [];
+
+    async function getLatestVideoId() {
+      try {
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'video/'&orderBy=modifiedTime desc&pageSize=1&fields=files(id)&key=${API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return (data.files && data.files.length > 0) ? data.files[0].id : null;
+      } catch (error) {
+        console.error("Drive Fetch Error:", error);
+        return null;
+      }
+    }
+
+    // Fetches all images from each category folder via Google Drive API
+    async function fetchDriveCatalog() {
+      const items = [];
+      const fetchPromises = Object.entries(CATALOG_FOLDERS).map(async ([catName, folderId]) => {
+        try {
+          const query = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
+          const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)&pageSize=30&key=${API_KEY}`;
+          const res = await fetch(url);
+          const data = await res.json();
+
+          if (data.files && data.files.length > 0) {
+            data.files.forEach(file => {
+              const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+              items.push({
+                id: file.id,
+                name: cleanTitle,
+                category: catName,
+                img: `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`
+              });
+            });
+          }
+        } catch (err) {
+          console.error(`Error loading category: ${catName}`, err);
+        }
+      });
+
+      await Promise.all(fetchPromises);
+      CATALOG_ITEMS = items;
+      return items;
+    }
+
+    function buildSparkleField() {
+      const field = document.querySelector("#sparkleField");
+      const count = 18;
+      for (let i = 0; i < count; i++) {
+        const s = document.createElement("div");
+        s.className = "sparkle";
+        s.style.left = Math.random() * 100 + "%";
+        s.style.top = Math.random() * 100 + "%";
+        s.style.animationDuration = (2.5 + Math.random() * 3) + "s";
+        s.style.animationDelay = (Math.random() * 3) + "s";
+        s.style.opacity = (0.2 + Math.random() * 0.5).toFixed(2);
+        field.appendChild(s);
+      }
+    }
+
+    function attachTilt(card) {
+      const maxTilt = 12;
+
+      function updateTilt(clientX, clientY) {
+        const rect = card.getBoundingClientRect();
+        const px = (clientX - rect.left) / rect.width;
+        const py = (clientY - rect.top) / rect.height;
+        const rx = (0.5 - py) * maxTilt;
+        const ry = (px - 0.5) * maxTilt;
+        card.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) scale(1.04)`;
+        card.classList.add("tilting");
+      }
+
+      function resetTilt() {
+        card.style.transform = "";
+        card.classList.remove("tilting");
+      }
+
+      card.addEventListener("pointermove", (e) => updateTilt(e.clientX, e.clientY));
+      card.addEventListener("pointerdown", (e) => updateTilt(e.clientX, e.clientY));
+      card.addEventListener("pointerleave", resetTilt);
+      card.addEventListener("pointerup", () => setTimeout(resetTilt, 120));
+    }
+
+    async function startRawCameraFeed() {
+      const rawFeed = document.querySelector("#rawCameraFeed");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn("getUserMedia not supported in this browser.");
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+        rawFeed.srcObject = stream;
+        await rawFeed.play();
+      } catch (envErr) {
+        console.warn("Rear camera unavailable, falling back to default camera:", envErr);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          rawFeed.srcObject = stream;
+          await rawFeed.play();
+        } catch (anyErr) {
+          console.error("Camera access failed entirely:", anyErr);
+        }
+      }
+    }
+
+    window.addEventListener("load", async () => {
+      const videoEl = document.querySelector("#driveVideo");
+      const videoPlane = document.querySelector("#videoPlane");
+      const target = document.querySelector("#target1");
+      const toggleButton = document.querySelector("#toggleButton");
+      const buttonsContainer = document.querySelector("#planButtons");
+      const curtain = document.querySelector("#blackCurtain");
+      const sceneEl = document.querySelector('a-scene');
+
+      const openCatalogBtn = document.querySelector("#openCatalogBtn");
+      const closeCatalogBtn = document.querySelector("#closeCatalogBtn");
+      const catalogSheet = document.querySelector("#catalogSheet");
+      const catalogList = document.querySelector("#catalogList");
+      const categoryTabs = document.querySelectorAll(".category-chip");
+
+      let isPlaying = false;
+      let catalogTransitioning = false;
+      let currentLoadedFileId = null;
+
+      buildSparkleField();
+      startRawCameraFeed();
+
+      function renderCatalog(filter = "all") {
+        catalogList.innerHTML = "";
+        const filtered = filter === "all" ? CATALOG_ITEMS : CATALOG_ITEMS.filter(i => i.category === filter);
+
+        if (filtered.length === 0) {
+          catalogList.innerHTML = `<div class="catalog-empty">No items found in this collection.</div>`;
+          return;
+        }
+
+        filtered.forEach((item, i) => {
+          const card = document.createElement("div");
+          card.className = "catalog-card";
+          card.style.animationDelay = Math.min(i * 55, 500) + "ms";
+          card.innerHTML = `
+            <div class="thumb-wrap">
+              <img src="${item.img}" alt="${item.name}" loading="lazy" />
+            </div>
+            <div class="tag">${item.category}</div>
+            <div class="name">${item.name}</div>
+          `;
+          catalogList.appendChild(card);
+          attachTilt(card);
+        });
+      }
+
+      catalogList.innerHTML = `<div class="catalog-empty">Loading Collections…</div>`;
+      await fetchDriveCatalog();
+      renderCatalog("all");
+
+      categoryTabs.forEach(chip => {
+        chip.addEventListener("click", () => {
+          categoryTabs.forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          renderCatalog(chip.dataset.cat);
+        });
+      });
+
+      function pauseCamera() {
+        try {
+          const arSystem = sceneEl.systems && sceneEl.systems["mindar-image-system"];
+          if (arSystem && typeof arSystem.pause === "function") {
+            arSystem.pause(false);
+          }
+        } catch (err) {
+          console.warn("Could not pause AR camera:", err);
+        }
+      }
+
+      function resumeCamera() {
+        try {
+          const arSystem = sceneEl.systems && sceneEl.systems["mindar-image-system"];
+          if (arSystem && typeof arSystem.unpause === "function") {
+            arSystem.unpause();
+          }
+        } catch (err) {
+          console.warn("Could not resume AR camera:", err);
+        }
+      }
+
+      function openCatalog() {
+        if (catalogTransitioning) return;
+        catalogTransitioning = true;
+        document.body.classList.add("catalog-open");
+        catalogSheet.classList.add("open");
+        pauseCamera();
+        setTimeout(() => { catalogTransitioning = false; }, 300);
+      }
+
+      function closeCatalog() {
+        if (catalogTransitioning) return;
+        catalogTransitioning = true;
+        catalogSheet.classList.remove("open");
+        document.body.classList.remove("catalog-open");
+        resumeCamera();
+        setTimeout(() => { catalogTransitioning = false; }, 300);
+      }
+
+      openCatalogBtn.addEventListener("click", openCatalog);
+      closeCatalogBtn.addEventListener("click", closeCatalog);
+
+      function dismissCurtain() {
+        if (curtain) {
+          curtain.style.opacity = "0";
+          setTimeout(() => { curtain.style.display = "none"; }, 600);
+        }
+      }
+
+      let curtainDismissed = false;
+      function dismissCurtainOnce(reason) {
+        if (curtainDismissed) return;
+        curtainDismissed = true;
+        console.log("Dismissing curtain, reason:", reason);
+        dismissCurtain();
+      }
+
+      sceneEl.addEventListener("arReady", () => dismissCurtainOnce("arReady event"));
+      sceneEl.addEventListener("arError", (err) => {
+        console.error("MindAR failed to start:", err);
+        dismissCurtainOnce("arError event");
+      });
+
+      const curtainWatcher = setInterval(() => {
+        const camFeed = document.querySelector('video.mindar-camera, video[autoplay]');
+        if (camFeed && camFeed.readyState >= 2 && !camFeed.paused) {
+          dismissCurtainOnce("camera video element playing");
+          clearInterval(curtainWatcher);
+        }
+      }, 300);
+
+      setTimeout(() => {
+        clearInterval(curtainWatcher);
+        if (!curtainDismissed) {
+          console.warn("AR did not report ready within 6s — force-dismissing curtain.");
+        }
+        dismissCurtainOnce("6s timeout fallback");
+      }, 6000);
+
+      function adjustPlaneToVideoRatio() {
+        if (!videoPlane || !videoEl) return;
+        const w = videoEl.videoWidth;
+        const h = videoEl.videoHeight;
+
+        if (w > 0 && h > 0) {
+          const aspectRatio = w / h;
+          const targetWidth = aspectRatio >= 1 ? 1 : aspectRatio;
+          const targetHeight = aspectRatio >= 1 ? (1 / aspectRatio) : 1;
+
+          videoPlane.setAttribute('geometry', {
+            primitive: 'plane',
+            width: targetWidth,
+            height: targetHeight
+          });
+        }
+      }
+
+      videoEl.addEventListener('loadedmetadata', adjustPlaneToVideoRatio);
+
+      // Target detected: prepare to display the current frame and wait for manual Play tap
+      target.addEventListener("targetFound", async () => {
+        document.body.classList.add("found");
+        buttonsContainer.style.display = "flex";
+
+        if (!currentLoadedFileId) {
+          const fileId = await getLatestVideoId();
+          if (fileId) {
+            currentLoadedFileId = fileId;
+            videoEl.src = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+            videoEl.load();
+          }
+        }
+
+        // Keep paused on target re-entry, ready for manual trigger
+        isPlaying = false;
+        toggleButton.textContent = "▶ Play Video";
+
+        if (videoPlane && videoEl.readyState >= 2) {
+          videoPlane.setAttribute('visible', 'true');
+        }
+      });
+
+      // Target lost: pause playback immediately so the frame freezes exactly where left off
+      target.addEventListener("targetLost", () => {
+        document.body.classList.remove("found");
+        closeCatalog();
+
+        if (!videoEl.paused) {
+          videoEl.pause();
+        }
+
+        if (videoPlane) {
+          videoPlane.setAttribute('visible', 'false');
+        }
+
+        isPlaying = false;
+        toggleButton.textContent = "▶ Play Video";
+      });
+
+      // Manual playback control button
+      toggleButton.addEventListener("click", async () => {
+        try {
+          if (!isPlaying) {
+            videoEl.muted = false;
+            await videoEl.play();
+            toggleButton.textContent = "⏸ Pause Video";
+            isPlaying = true;
+            if (videoPlane) videoPlane.setAttribute('visible', 'true');
+          } else {
+            videoEl.pause();
+            toggleButton.textContent = "▶ Play Video";
+            isPlaying = false;
+          }
+        } catch (err) {
+          console.error("Playback error:", err);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
