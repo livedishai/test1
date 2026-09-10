@@ -28,14 +28,28 @@
 
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
       margin: 0;
       background: var(--deep);
       overflow: hidden;
       font-family: 'Manrope', sans-serif;
       color: var(--cream);
       -webkit-tap-highlight-color: transparent;
+      height: 100%;
     }
+
+    body.catalog-open {
+      overflow: hidden;
+    }
+
+    /* When the catalog is open, the live camera view dims and softens
+       behind it — a visual cue that the feed has been paused. */
+    body.catalog-open a-scene {
+      filter: brightness(0.25) saturate(0.7) blur(10px);
+      transition: filter 0.6s ease;
+      pointer-events: none;
+    }
+    a-scene { transition: filter 0.4s ease; }
 
     #blackCurtain {
       position: fixed;
@@ -208,6 +222,11 @@
       pointer-events: auto;
     }
 
+    body.catalog-open .button-panel {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     .plan-button {
       position: relative;
       overflow: hidden;
@@ -238,77 +257,150 @@
       transform: scale(0.96);
     }
 
-    /* ---------- Interactive Catalog Drawer ---------- */
-    #catalogSheet {
+    /* ================= Full-Page 3D Catalog ================= */
+    #catalogStage {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      max-height: 70vh;
-      height: 480px;
-      background: rgba(19, 8, 33, 0.95);
-      border-top: 1px solid var(--gold);
-      border-radius: 24px 24px 0 0;
-      box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      inset: 0;
       z-index: 2000;
+      perspective: 2200px;
+      pointer-events: none;
+    }
+
+    #catalogSheet {
+      position: absolute;
+      inset: 0;
+      height: 100dvh;
+      width: 100vw;
+      background:
+        radial-gradient(ellipse at 20% -10%, rgba(94,15,139,0.45) 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 0%, rgba(212,175,55,0.12) 0%, transparent 45%),
+        linear-gradient(180deg, var(--deep-2) 0%, var(--deep) 100%);
       display: flex;
       flex-direction: column;
-      transform: translateY(100%);
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+      transform-style: preserve-3d;
+      transform-origin: 50% 100%;
+      transform: rotateX(-100deg) translateY(30px) scale(0.94);
+      opacity: 0;
+      transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+      pointer-events: none;
     }
 
     #catalogSheet.open {
-      transform: translateY(0);
+      transform: rotateX(0deg) translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
     }
 
-    .sheet-handle {
-      width: 44px;
+    /* thin gold seam at the hinge, like a jewel case lid */
+    #catalogSheet::before {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0.7;
+    }
+
+    .sparkle-field {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
       height: 4px;
-      background: var(--gold-soft);
-      border-radius: 999px;
-      margin: 12px auto 6px;
-      opacity: 0.6;
-      cursor: pointer;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px 1px rgba(212,175,55,0.8);
+      animation-name: sparkleFloat;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+    }
+
+    @keyframes sparkleFloat {
+      0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.25; }
+      50%      { transform: translateY(-18px) scale(1.2); opacity: 0.9; }
     }
 
     .sheet-header {
+      position: relative;
+      z-index: 2;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 10px 20px;
+      gap: 14px;
+      padding: max(18px, env(safe-area-inset-top)) 20px 16px;
+      background: linear-gradient(180deg, rgba(19,8,33,0.9) 0%, rgba(19,8,33,0) 100%);
+      flex-shrink: 0;
     }
+
+    .back-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      color: var(--gold-soft);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .back-btn:active { transform: scale(0.9); }
+
+    .sheet-header-text { display: flex; flex-direction: column; gap: 2px; }
 
     .sheet-title {
       font-family: 'Cormorant Garamond', serif;
-      font-size: 22px;
+      font-size: 25px;
       font-weight: 600;
-      color: var(--gold-soft);
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+      background: linear-gradient(100deg, var(--gold-soft) 20%, #fff 45%, var(--gold-soft) 70%);
+      background-size: 220% auto;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .close-btn {
-      background: none;
-      border: none;
+    #catalogSheet.open .sheet-title {
+      animation: titleShine 2.2s ease-out 0.35s 1;
+    }
+
+    @keyframes titleShine {
+      0%   { background-position: 200% center; }
+      100% { background-position: 0% center; }
+    }
+
+    .sheet-subtitle {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
       color: var(--cream-dim);
-      font-size: 24px;
-      cursor: pointer;
-      line-height: 1;
     }
 
     /* Category Pill Navigation */
     .category-scroll {
+      position: relative;
+      z-index: 2;
       display: flex;
       gap: 10px;
-      padding: 8px 20px 14px;
+      padding: 2px 20px 16px;
       overflow-x: auto;
       scrollbar-width: none;
+      flex-shrink: 0;
     }
     .category-scroll::-webkit-scrollbar { display: none; }
 
     .category-chip {
-      padding: 7px 16px;
+      padding: 8px 18px;
       border-radius: 999px;
       background: var(--glass);
       border: 1px solid var(--glass-border);
@@ -328,30 +420,75 @@
       font-weight: 700;
     }
 
-    /* Catalog Cards Grid */
+    /* Catalog Cards Grid — scrollable stage beneath the header */
     .catalog-grid {
+      position: relative;
+      z-index: 1;
+      flex: 1;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      padding: 10px 20px 30px;
+      gap: 16px;
+      padding: 6px 20px 40px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      transform-style: preserve-3d;
+      perspective: 900px;
     }
 
     .catalog-card {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--glass-border);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
+      transform-style: preserve-3d;
+      will-change: transform;
+      transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      opacity: 0;
+      animation: cardRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .catalog-card:active {
+      transition: transform 0.05s ease;
+    }
+
+    @keyframes cardRise {
+      from { opacity: 0; transform: translateY(26px) rotateX(18deg) scale(0.92); }
+      to   { opacity: 1; transform: translateY(0) rotateX(0) scale(1); }
+    }
+
+    .catalog-card .thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      transform-style: preserve-3d;
     }
 
     .catalog-card img {
       width: 100%;
-      aspect-ratio: 1;
+      height: 100%;
       object-fit: cover;
-      border-radius: 8px;
+      display: block;
+      transform: translateZ(0);
+    }
+
+    /* light sweep across each card, like a gem catching light */
+    .catalog-card .thumb-wrap::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.28) 48%, transparent 60%);
+      transform: translateX(-120%);
+      pointer-events: none;
+    }
+    .catalog-card:hover .thumb-wrap::after,
+    .catalog-card.tilting .thumb-wrap::after {
+      transform: translateX(120%);
+      transition: transform 0.7s ease;
     }
 
     .catalog-card .name {
@@ -368,6 +505,16 @@
       text-transform: uppercase;
       color: var(--gold-soft);
       letter-spacing: 1px;
+    }
+
+    .catalog-empty {
+      grid-column: span 2;
+      text-align: center;
+      color: var(--cream-dim);
+      padding: 60px 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 17px;
+      font-style: italic;
     }
 
     /* Instagram button */
@@ -389,7 +536,10 @@
       -webkit-backdrop-filter: blur(10px);
       box-shadow: 0 6px 18px rgba(0,0,0,0.4);
       text-decoration: none;
+      transition: opacity 0.3s ease;
     }
+
+    body.catalog-open #instagramButton { opacity: 0; pointer-events: none; }
 
     #instagramButton img {
       width: 24px;
@@ -399,6 +549,14 @@
 
     .a-enter-vr, .a-enter-ar, .a-orientation-modal, .mindar-ui-loading, .mindar-ui-compatibility {
       display: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #catalogSheet, .catalog-card, .sheet-title, .sparkle {
+        animation: none !important;
+        transition: opacity 0.3s ease !important;
+      }
+      #catalogSheet { transform: none !important; }
     }
   </style>
 </head>
@@ -433,25 +591,31 @@
     <button class="plan-button catalog-trigger" id="openCatalogBtn">📖 Catalog</button>
   </div>
 
-  <!-- Bottom Sheet Catalog Drawer -->
-  <div id="catalogSheet">
-    <div class="sheet-handle" id="sheetHandle"></div>
-    <div class="sheet-header">
-      <div class="sheet-title">Collection Showcase</div>
-      <button class="close-btn" id="closeCatalogBtn">&times;</button>
-    </div>
+  <!-- Full-Page 3D Catalog -->
+  <div id="catalogStage">
+    <div id="catalogSheet">
+      <div class="sparkle-field" id="sparkleField"></div>
 
-    <!-- Category Tabs -->
-    <div class="category-scroll" id="categoryTabs">
-      <button class="category-chip active" data-cat="all">All</button>
-      <button class="category-chip" data-cat="bridal">Bridal</button>
-      <button class="category-chip" data-cat="necklaces">Necklaces</button>
-      <button class="category-chip" data-cat="bangles">Bangles</button>
-      <button class="category-chip" data-cat="rings">Rings</button>
-    </div>
+      <div class="sheet-header">
+        <button class="back-btn" id="closeCatalogBtn" aria-label="Close catalog">←</button>
+        <div class="sheet-header-text">
+          <div class="sheet-title">Collection Showcase</div>
+          <div class="sheet-subtitle">Tap a piece to catch the light</div>
+        </div>
+      </div>
 
-    <!-- Dynamic Item Container -->
-    <div class="catalog-grid" id="catalogList"></div>
+      <!-- Category Tabs -->
+      <div class="category-scroll" id="categoryTabs">
+        <button class="category-chip active" data-cat="all">All</button>
+        <button class="category-chip" data-cat="bridal">Bridal</button>
+        <button class="category-chip" data-cat="necklaces">Necklaces</button>
+        <button class="category-chip" data-cat="bangles">Bangles</button>
+        <button class="category-chip" data-cat="rings">Rings</button>
+      </div>
+
+      <!-- Dynamic Item Container -->
+      <div class="catalog-grid" id="catalogList"></div>
+    </div>
   </div>
 
   <a-scene
@@ -528,6 +692,47 @@
       return items;
     }
 
+    // ---------- Decorative sparkle field (built once) ----------
+    function buildSparkleField() {
+      const field = document.querySelector("#sparkleField");
+      const count = 18;
+      for (let i = 0; i < count; i++) {
+        const s = document.createElement("div");
+        s.className = "sparkle";
+        s.style.left = Math.random() * 100 + "%";
+        s.style.top = Math.random() * 100 + "%";
+        s.style.animationDuration = (2.5 + Math.random() * 3) + "s";
+        s.style.animationDelay = (Math.random() * 3) + "s";
+        s.style.opacity = (0.2 + Math.random() * 0.5).toFixed(2);
+        field.appendChild(s);
+      }
+    }
+
+    // ---------- 3D pointer-tilt for a catalog card ----------
+    function attachTilt(card) {
+      const maxTilt = 12;
+
+      function updateTilt(clientX, clientY) {
+        const rect = card.getBoundingClientRect();
+        const px = (clientX - rect.left) / rect.width;
+        const py = (clientY - rect.top) / rect.height;
+        const rx = (0.5 - py) * maxTilt;
+        const ry = (px - 0.5) * maxTilt;
+        card.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) scale(1.04)`;
+        card.classList.add("tilting");
+      }
+
+      function resetTilt() {
+        card.style.transform = "";
+        card.classList.remove("tilting");
+      }
+
+      card.addEventListener("pointermove", (e) => updateTilt(e.clientX, e.clientY));
+      card.addEventListener("pointerdown", (e) => updateTilt(e.clientX, e.clientY));
+      card.addEventListener("pointerleave", resetTilt);
+      card.addEventListener("pointerup", () => setTimeout(resetTilt, 120));
+    }
+
     window.addEventListener("load", async () => {
       const videoEl = document.querySelector("#driveVideo");
       const videoPlane = document.querySelector("#videoPlane");
@@ -546,29 +751,35 @@
 
       let isPlaying = false;
 
+      buildSparkleField();
+
       function renderCatalog(filter = "all") {
         catalogList.innerHTML = "";
         const filtered = filter === "all" ? CATALOG_ITEMS : CATALOG_ITEMS.filter(i => i.category === filter);
-        
+
         if (filtered.length === 0) {
-          catalogList.innerHTML = `<div style="grid-column: span 2; text-align: center; color: var(--cream-dim); padding: 40px 0;">No items found in this collection.</div>`;
+          catalogList.innerHTML = `<div class="catalog-empty">No items found in this collection.</div>`;
           return;
         }
 
-        filtered.forEach(item => {
+        filtered.forEach((item, i) => {
           const card = document.createElement("div");
           card.className = "catalog-card";
+          card.style.animationDelay = Math.min(i * 55, 500) + "ms";
           card.innerHTML = `
-            <img src="${item.img}" alt="${item.name}" loading="lazy" />
+            <div class="thumb-wrap">
+              <img src="${item.img}" alt="${item.name}" loading="lazy" />
+            </div>
             <div class="tag">${item.category}</div>
             <div class="name">${item.name}</div>
           `;
           catalogList.appendChild(card);
+          attachTilt(card);
         });
       }
 
       // Initial catalog fetch from Google Drive
-      catalogList.innerHTML = `<div style="grid-column: span 2; text-align: center; color: var(--gold-soft); padding: 30px 0;">Loading Collections...</div>`;
+      catalogList.innerHTML = `<div class="catalog-empty">Loading Collections…</div>`;
       await fetchDriveCatalog();
       renderCatalog("all");
 
@@ -580,8 +791,45 @@
         });
       });
 
-      openCatalogBtn.addEventListener("click", () => catalogSheet.classList.add("open"));
-      closeCatalogBtn.addEventListener("click", () => catalogSheet.classList.remove("open"));
+      // ---------- Camera pause/resume when the catalog opens/closes ----------
+      // MindAR exposes pause()/unpause() on its aframe system: pausing stops
+      // the tracking loop and releases the camera stream; unpause restarts it.
+      function pauseCamera() {
+        try {
+          const arSystem = sceneEl.systems && sceneEl.systems["mindar-image-system"];
+          if (arSystem && typeof arSystem.pause === "function") {
+            arSystem.pause();
+          }
+        } catch (err) {
+          console.warn("Could not pause AR camera:", err);
+        }
+      }
+
+      function resumeCamera() {
+        try {
+          const arSystem = sceneEl.systems && sceneEl.systems["mindar-image-system"];
+          if (arSystem && typeof arSystem.unpause === "function") {
+            arSystem.unpause();
+          }
+        } catch (err) {
+          console.warn("Could not resume AR camera:", err);
+        }
+      }
+
+      function openCatalog() {
+        document.body.classList.add("catalog-open");
+        catalogSheet.classList.add("open");
+        pauseCamera();
+      }
+
+      function closeCatalog() {
+        catalogSheet.classList.remove("open");
+        document.body.classList.remove("catalog-open");
+        resumeCamera();
+      }
+
+      openCatalogBtn.addEventListener("click", openCatalog);
+      closeCatalogBtn.addEventListener("click", closeCatalog);
 
       function dismissCurtain() {
         if (curtain) {
@@ -635,7 +883,7 @@
 
       target.addEventListener("targetLost", () => {
         document.body.classList.remove("found");
-        catalogSheet.classList.remove("open");
+        closeCatalog();
         videoEl.pause();
         if (videoPlane) videoPlane.setAttribute('visible', 'false');
         isPlaying = false;
