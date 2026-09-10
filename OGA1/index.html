@@ -44,12 +44,29 @@
 
     /* When the catalog is open, the live camera view dims and softens
        behind it — a visual cue that the feed has been paused. */
-    body.catalog-open a-scene {
+    body.catalog-open a-scene,
+    body.catalog-open #rawCameraFeed {
       filter: brightness(0.25) saturate(0.7) blur(10px);
       transition: filter 0.6s ease;
       pointer-events: none;
     }
     a-scene { transition: filter 0.4s ease; }
+
+    /* ---------- Raw camera feed (guaranteed fallback) ----------
+       MindAR draws its own camera video internally, but if its
+       compositing ever fails to reach the screen, this element
+       gives you a plain, always-visible live camera preview
+       underneath everything else. */
+    #rawCameraFeed {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      background: #000;
+      transition: filter 0.4s ease;
+    }
 
     #blackCurtain {
       position: fixed;
@@ -563,6 +580,9 @@
 
 <body>
 
+  <!-- Guaranteed raw camera preview, sits behind the AR canvas -->
+  <video id="rawCameraFeed" autoplay playsinline muted></video>
+
   <div id="blackCurtain">
     <svg class="gem-loader" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
       <path d="M28 4 L48 20 L28 52 L8 20 Z M8 20 L48 20 M18 20 L28 4 L38 20 M18 20 L28 52 M38 20 L28 52" />
@@ -733,6 +753,37 @@
       card.addEventListener("pointerup", () => setTimeout(resetTilt, 120));
     }
 
+    // ---------- Guaranteed raw camera preview ----------
+    // Runs independently of MindAR. Even if MindAR's own internal video
+    // compositing fails for any reason, this puts a real, live camera
+    // image on screen so the user is never staring at a blank/purple
+    // background. It requests the rear ("environment") camera first,
+    // then falls back to any camera if that's unavailable (e.g. laptops).
+    async function startRawCameraFeed() {
+      const rawFeed = document.querySelector("#rawCameraFeed");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn("getUserMedia not supported in this browser.");
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+        rawFeed.srcObject = stream;
+        await rawFeed.play();
+      } catch (envErr) {
+        console.warn("Rear camera unavailable, falling back to default camera:", envErr);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          rawFeed.srcObject = stream;
+          await rawFeed.play();
+        } catch (anyErr) {
+          console.error("Camera access failed entirely:", anyErr);
+        }
+      }
+    }
+
     window.addEventListener("load", async () => {
       const videoEl = document.querySelector("#driveVideo");
       const videoPlane = document.querySelector("#videoPlane");
@@ -753,6 +804,7 @@
       let catalogTransitioning = false; // guards against double taps mid pause/unpause
 
       buildSparkleField();
+      startRawCameraFeed();
 
       function renderCatalog(filter = "all") {
         catalogList.innerHTML = "";
